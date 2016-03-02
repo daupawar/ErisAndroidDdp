@@ -31,11 +31,12 @@ To handle collection data
  * Add the Internet permission to your app's `AndroidManifest.xml`:
 
     `<uses-permission android:name="android.permission.INTERNET" />`
+    
 ## Usage
 * Creating a new instance of the lib class and connect to server
-    ```
-    ErisCollectionManager.getInstance().connect(this,"example.meteor.com");
-    ```
+  ```
+  ErisCollectionManager.getInstance().connect(this,"example.meteor.com");
+  ```
 * Add listeners to collection
 ```
 public class MainActivity extends Activity implements  ErisCollectionListener{
