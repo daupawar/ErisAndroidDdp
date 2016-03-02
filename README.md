@@ -6,11 +6,32 @@ This is library project based on [[delight-im/Android-DDP](https://github.com/de
 
 To handle collection data 
 
+## Installation
+
+ * Add this library to your project
+   * Declare the Gradle repository in your root `build.gradle`
+
+     ```gradle
+     allprojects {
+         repositories {
+             jcenter()
+             maven { url "https://jitpack.io" }
+         }
+     }
+     ```
+
+   * Declare the Gradle dependency in your app module's `build.gradle`
+
+     ```gradle
+     dependencies {
+         compile 'com.eris.androidddp:erisandroidddp:1.0.3'
+     }
+     ```
+
+ * Add the Internet permission to your app's `AndroidManifest.xml`:
+
+    `<uses-permission android:name="android.permission.INTERNET" />`
 ## Usage
-* Add to project (gradle)
-```
-compile 'com.eris.androidddp:erisandroidddp:1.0.3'
-```
 * Creating a new instance of the lib class and connect to server
     ```
     ErisCollectionManager.getInstance().connect(this,"example.meteor.com");
