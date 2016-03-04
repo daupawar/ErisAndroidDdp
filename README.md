@@ -31,6 +31,7 @@ To handle collection data
  * Add the Internet permission to your app's `AndroidManifest.xml`:
 
     `<uses-permission android:name="android.permission.INTERNET" />`
+    `<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />`// for network connectin monitoring
     
 ## Usage
 * Creating a new instance of the lib class and connect to server
