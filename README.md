@@ -89,12 +89,12 @@ ErisCollectionRecord collection = ErisCollectionManager.getInstance().getCollect
 
 *Signing in with an existing username (requires accounts-password package)
 ```
-mMeteor.loginWithUsername("john", "password", new ResultListener() { });
+ErisCollectionManager.getInstance().loginWithUsername("john", "password", new ResultListener() { });
 ```
 
 *Signing in with an existing email address (requires accounts-password package)
 ```
-mMeteor.loginWithEmail("john.doe@example.com", "password", new ResultListener() { });
+ErisCollectionManager.getInstance().loginWithEmail("john.doe@example.com", "password", new ResultListener() { });
 ```
 
 * Call insert method 
