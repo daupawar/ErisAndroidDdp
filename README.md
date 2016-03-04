@@ -91,9 +91,9 @@ ErisCollectionManager.getInstance().insert("collectionName",values,new ResultLis
 ```
 ErisCollectionManager.getInstance().remove("collectionName","documentId",new ResultListener() {});
 ```
-* For update directly call metero update method
+* call  update method
 ```
- MeteorSingleton.getInstance().update("my-collection", query, values, options, new ResultListener() { });
+ ErisCollectionManager.getInstance().update("my-collection", query, values, options, new ResultListener() { });
 ```
 
 * Call remote method asynchronously 
