@@ -88,14 +88,19 @@ ErisCollectionRecord collection = ErisCollectionManager.getInstance().getCollect
  ErisCollectionManager.getInstance().getCollection("collectionName").removeFromListMap("documentId");
 ```
 
-*Signing in with an existing username (requires accounts-password package)
+* Signing in with an existing username
 ```
 ErisCollectionManager.getInstance().loginWithUsername("john", "password", new ResultListener() { });
 ```
 
-*Signing in with an existing email address (requires accounts-password package)
+* Signing in with an existing email address
 ```
 ErisCollectionManager.getInstance().loginWithEmail("john.doe@example.com", "password", new ResultListener() { });
+```
+
+* Signing in with an existing token (resume loing)
+```
+ErisCollectionManager.getInstance().loginWithToken("yourtoken", new ResultListener() { });
 ```
 
 * Call insert method 
