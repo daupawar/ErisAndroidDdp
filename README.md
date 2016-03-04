@@ -81,6 +81,16 @@ ErisCollectionRecord collection = ErisCollectionManager.getInstance().getCollect
  ErisCollectionManager.getInstance().getCollection("collectionName").removeFromListMap("documentId");
 ```
 
+*Signing in with an existing username (requires accounts-password package)
+```
+mMeteor.loginWithUsername("john", "password", new ResultListener() { });
+```
+
+*Signing in with an existing email address (requires accounts-password package)
+```
+mMeteor.loginWithEmail("john.doe@example.com", "password", new ResultListener() { });
+```
+
 * Call insert method 
 ```
 HashMap<String,Object> values=new HashMap<>();
