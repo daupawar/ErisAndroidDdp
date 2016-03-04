@@ -35,6 +35,12 @@ To handle collection data
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     ```
     
+     * Singleton access
+      * Accessing the instance (across `Activity` instances)
+      ```
+      ErisCollectionManager.getInstance();
+      ```
+      
 ## Usage
 * Creating a new instance of the lib class and connect to server
   ```
