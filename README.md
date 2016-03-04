@@ -46,6 +46,7 @@ To handle collection data
   ```
   ErisCollectionManager.getInstance().connect(this,"example.meteor.com");
   ```
+  
 * Add listeners to collection
 ```
 public class MainActivity extends Activity implements  ErisCollectionListener{
