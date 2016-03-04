@@ -32,8 +32,8 @@ public class ErisCollectionManager implements MeteorCallback {
 
     Meteor mMeteor;
     Context mContext;
-
-    private boolean hasNoConnectivity;
+    private boolean hasNetworkConnection;
+    private ErisConnectionListener connectionListener;
 
     protected ErisCollectionManager() {
         collectionHandlerList = new HashMap<>();
@@ -44,6 +44,9 @@ public class ErisCollectionManager implements MeteorCallback {
 
     private static ErisCollectionManager instance = null;
 
+    /**
+     * @return singleton object
+     */
     public static synchronized ErisCollectionManager getInstance() {
         if (instance == null) {
             instance = new ErisCollectionManager();
@@ -51,6 +54,10 @@ public class ErisCollectionManager implements MeteorCallback {
         return instance;
     }
 
+    /**
+     * @param context
+     * @param conUrl
+     */
     public void connect(Context context, String conUrl) {
         mContext = context;
         try {
@@ -62,6 +69,7 @@ public class ErisCollectionManager implements MeteorCallback {
                 MeteorSingleton.setLoggingEnabled(printMeteorLog);
                 mMeteor = MeteorSingleton.createInstance(mContext, ErisCollectionManager.getConnectionUrl(conUrl));
                 mMeteor.setCallback(this);
+                startConnectivityMonitoring(mContext);
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -82,6 +90,10 @@ public class ErisCollectionManager implements MeteorCallback {
         this.printMeteorLog = printMeteorLog;
     }
 
+    /**
+     * @param url
+     * @return
+     */
     public static String getConnectionUrl(String url) {
         return "ws://" + url + "/websocket";
     }
@@ -95,6 +107,7 @@ public class ErisCollectionManager implements MeteorCallback {
                 subscribeCollection(collectionName);
             }
         }
+
     }
 
     @Override
@@ -152,37 +165,69 @@ public class ErisCollectionManager implements MeteorCallback {
         }
     }
 
-    // subscribe to data from the server
+    /**
+     * subscribe to data from the server
+     *
+     * @param collectionName
+     */
     public void subscribeCollection(String collectionName) {
-        subscribeCollection(collectionName, null, null);
+        subscribeCollection(collectionName, null);
     }
 
+    /**
+     * @param collectionName
+     * @param parameters
+     */
     public void subscribeCollection(String collectionName, Object[] parameters) {
         subscribeCollection(collectionName, parameters, null);
     }
 
+    /**
+     * @param collectionName
+     * @param parameters
+     * @param listener
+     */
     public void subscribeCollection(String collectionName, Object[] parameters, SubscribeListener listener) {
 
-        if (!subscriptionList.containsKey(collectionName)) {
+        if (!hasSubscription(collectionName)) {
             String subscriptionId = mMeteor.subscribe(collectionName, parameters, listener);
             subscriptionList.put(collectionName, subscriptionId);
         }
     }
 
-    // unsubscribe to data from the server
+    /**
+     * unsubscribe to data from the server
+     *
+     * @param collectionName
+     */
     public void unscubscribeCollection(String collectionName) {
-        if (subscriptionList.containsKey(collectionName)) {
+        if (hasSubscription(collectionName)) {
             mMeteor.unsubscribe(collectionName);
             subscriptionList.remove(collectionName);
         }
     }
 
+    /**
+     * @param collectionName
+     * @return
+     */
+    public boolean hasSubscription(String collectionName) {
+        return subscriptionList.containsKey(collectionName);
+    }
+
+    /**
+     * @param message
+     */
     protected void Loggi(String message) {
         if (printLog) {
             Logg.i(getClass().getSimpleName(), message);
         }
     }
 
+    /**
+     * @param collectionName
+     * @return
+     */
     public ErisCollectionHandler getCollection(String collectionName) {
 
         if (!collectionHandlerList.containsKey(collectionName)) {
@@ -192,6 +237,11 @@ public class ErisCollectionManager implements MeteorCallback {
         return collectionHandlerList.get(collectionName);
     }
 
+    /**
+     * @param collectionName
+     * @param values
+     * @param listener
+     */
     public void insert(String collectionName, HashMap<String, Object> values, ResultListener listener) {
         if (listener != null) {
             mMeteor.insert(collectionName, values);
@@ -200,28 +250,118 @@ public class ErisCollectionManager implements MeteorCallback {
         }
     }
 
+
+    /**
+     * @param collectionName
+     * @param documentId
+     * @param listener
+     */
     public void remove(String collectionName, String documentId, ResultListener listener) {
         HashMap query = new HashMap();
         query.put("_id", documentId);
         if (listener != null) {
             mMeteor.insert(collectionName, query);
         } else {
-            mMeteor.insert(collectionName, query, listener);
+            if (this.hasNetworkConnection) {
+                mMeteor.insert(collectionName, query, listener);
+            } else {
+                listener.onError("Error", "Please Check your network Connection", "");
+            }
+        }
+    }
+
+    /**
+     *
+     * @param collectionName
+     * @param query
+     * @param data
+     */
+    public void update(String collectionName, Map<String, Object> query, Map<String, Object> data) {
+        MeteorSingleton.getInstance().update(collectionName, query, data);
+    }
+
+    /**
+     *
+     * @param collectionName
+     * @param query
+     * @param data
+     * @param options
+     */
+    public void update(String collectionName, Map<String, Object> query, Map<String, Object> data, Map<String, Object> options) {
+        MeteorSingleton.getInstance().update(collectionName, query, data, options);
+    }
+
+    /**
+     *
+     * @param collectionName
+     * @param query
+     * @param data
+     * @param options
+     * @param listener
+     */
+    public void update(String collectionName, Map<String, Object> query, Map<String, Object> data, Map<String, Object> options, ResultListener listener) {
+        if (listener != null) {
+            if (this.hasNetworkConnection) {
+                MeteorSingleton.getInstance().update(collectionName, query, data, options, listener);
+            } else {
+                listener.onError("Error", "Please Check your network Connection", "");
+            }
+        }
+    }
+
+    /**
+     *
+     * @param username
+     * @param password
+     * @param listener
+     */
+    public void loginWithUsername(String username, String password, ResultListener listener) {
+        if (listener != null) {
+            if (this.hasNetworkConnection) {
+                MeteorSingleton.getInstance().loginWithUsername(username, password, listener);
+            } else {
+                listener.onError("Error", "Please Check your network Connection", "");
+            }
+        }
+    }
+
+    /**
+     *
+     * @param email
+     * @param password
+     * @param listener
+     */
+    public void loginWithEmail(String email, String password, ResultListener listener) {
+        if (listener != null) {
+            if (this.hasNetworkConnection) {
+                MeteorSingleton.getInstance().loginWithEmail(email, password, listener);
+            } else {
+                listener.onError("Error", "Please Check your network Connection", "");
+            }
         }
     }
 
     /**
      * call remote method aysnchronasaly
      *
-     * @param methodName
-     * @param objectArray
+     * @param methodName  @type String
+     * @param objectArray Object[]{}
      * @param listener
      */
     public void callMethod(String methodName, Object[] objectArray, ResultListener listener) {
-        new BackgroundRPC(methodName, objectArray, listener).execute();
+        if (listener != null) {
+            if (this.hasNetworkConnection) {
+                new BackgroundRPC(methodName, objectArray, listener).execute();
+            } else {
+                listener.onError("Error", "Please Check your network Connection", "");
+            }
+        }
     }
 
 
+    /**
+     *
+     */
     private class BackgroundRPC extends AsyncTask<Void, Void, Void> {
 
         private String methodName;
@@ -243,6 +383,30 @@ public class ErisCollectionManager implements MeteorCallback {
     }
 
     /**
+     * resume session
+     *
+     * @param token
+     * @param listener
+     */
+    public void loginWithToken(String token, ResultListener listener) {
+        if (token != null) {
+            if (!token.isEmpty()) {
+                final Map<String, Object> authData = new HashMap<>();
+                authData.put("resume", token);
+
+                callMethod("login", new Object[]{authData}, listener);
+            }
+        }
+    }
+
+    /**
+     * @param listener
+     */
+    public void setInternetConnectionListener(ErisConnectionListener listener) {
+        this.connectionListener = listener;
+    }
+
+    /**
      * Starts network connectivity monitoring.
      *
      * @param context {@link Context} to access services and register handlers.
@@ -251,21 +415,23 @@ public class ErisCollectionManager implements MeteorCallback {
         // Start monitoring broadcast notifications for connectivity
         context.getApplicationContext().registerReceiver(new ConnectivityChangeReceiver(), new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION));
 
-
         // Update flag based on current connectivity state
         try {
             ConnectivityManager mgr = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
             NetworkInfo netInfo = mgr.getActiveNetworkInfo();
             if ((netInfo != null) && (netInfo.isConnected())) {
-                this.hasNoConnectivity = false;
+                callConnectionListener(false);
             } else {
-                this.hasNoConnectivity = true;
+                callConnectionListener(true);
             }
         } catch (Exception e) {
-            this.hasNoConnectivity = true;
+            callConnectionListener(true);
         }
     }
 
+    /**
+     *
+     */
     private class ConnectivityChangeReceiver extends BroadcastReceiver {
 
         @Override
@@ -274,15 +440,26 @@ public class ErisCollectionManager implements MeteorCallback {
         }
     }
 
+    /**
+     * @param intent
+     */
     private void handleConnectivityNotification(Intent intent) {
-        this.hasNoConnectivity = intent.getBooleanExtra(ConnectivityManager.EXTRA_NO_CONNECTIVITY, false);
+        boolean statusNet = intent.getBooleanExtra(ConnectivityManager.EXTRA_NO_CONNECTIVITY, false);
+        callConnectionListener(statusNet);
+        Loggi("Has network connectivity: " + (statusNet ? "Yes" : "Yes"));
+        String failReason = intent.getStringExtra(ConnectivityManager.EXTRA_REASON);
+        if ((failReason != null) && (failReason.length() > 0)) {
+            Loggi("Connectivity fail reason: " + failReason);
+        }
+    }
 
-        if (Logg.printLog) {
-            Logg.i(ErisCollectionManager.this, "Has network connectivity: " + (this.hasNoConnectivity ? "No" : "Yes"));
-            String failReason = intent.getStringExtra(ConnectivityManager.EXTRA_REASON);
-            if ((failReason != null) && (failReason.length() > 0)) {
-                Logg.i(ErisCollectionManager.this, "Connectivity fail reason: " + failReason);
-            }
+    /**
+     * @param status
+     */
+    private void callConnectionListener(boolean status) {
+        this.hasNetworkConnection = status;
+        if (connectionListener != null) {
+            connectionListener.onInternetStatusChanged(status);
         }
     }
 }
