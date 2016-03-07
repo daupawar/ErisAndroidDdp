@@ -24,7 +24,7 @@ To handle collection data
 
      ```gradle
      dependencies {
-         compile 'com.eris.androidddp:erisandroidddp:1.0.4'
+         compile 'com.eris.androidddp:erisandroidddp:1.0.5'
      }
      ```
 
