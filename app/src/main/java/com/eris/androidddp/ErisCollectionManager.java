@@ -168,7 +168,7 @@ public class ErisCollectionManager implements MeteorCallback {
     /**
      * subscribe to data from the server
      *
-     * @param collectionName
+     * @param collectionName String
      */
     public void subscribeCollection(String collectionName) {
         subscribeCollection(collectionName, null);
@@ -246,7 +246,13 @@ public class ErisCollectionManager implements MeteorCallback {
         if (listener != null) {
             mMeteor.insert(collectionName, values);
         } else {
-            mMeteor.insert(collectionName, values, listener);
+            if (listener != null) {
+                if (this.hasNetworkConnection) {
+                    mMeteor.insert(collectionName, values, listener);
+                }else {
+                    listener.onError("Error", "Please Check your network Connection", "");
+                }
+            }
         }
     }
 
@@ -342,10 +348,27 @@ public class ErisCollectionManager implements MeteorCallback {
     }
 
     /**
+     * resume session
+     *
+     * @param token
+     * @param listener
+     */
+    public void loginWithToken(String token, ResultListener listener) {
+        if (token != null) {
+            if (!token.isEmpty()) {
+                final Map<String, Object> authData = new HashMap<>();
+                authData.put("resume", token);
+
+                callMethod("login", new Object[]{authData}, listener);
+            }
+        }
+    }
+
+    /**
      * call remote method aysnchronasaly
      *
-     * @param methodName  @type String
-     * @param objectArray Object[]{}
+     * @param methodName
+     * @param objectArray
      * @param listener
      */
     public void callMethod(String methodName, Object[] objectArray, ResultListener listener) {
@@ -360,7 +383,7 @@ public class ErisCollectionManager implements MeteorCallback {
 
 
     /**
-     *
+     * AsyncTask
      */
     private class BackgroundRPC extends AsyncTask<Void, Void, Void> {
 
@@ -383,23 +406,6 @@ public class ErisCollectionManager implements MeteorCallback {
     }
 
     /**
-     * resume session
-     *
-     * @param token
-     * @param listener
-     */
-    public void loginWithToken(String token, ResultListener listener) {
-        if (token != null) {
-            if (!token.isEmpty()) {
-                final Map<String, Object> authData = new HashMap<>();
-                authData.put("resume", token);
-
-                callMethod("login", new Object[]{authData}, listener);
-            }
-        }
-    }
-
-    /**
      * @param listener
      */
     public void setInternetConnectionListener(ErisConnectionListener listener) {
@@ -415,18 +421,7 @@ public class ErisCollectionManager implements MeteorCallback {
         // Start monitoring broadcast notifications for connectivity
         context.getApplicationContext().registerReceiver(new ConnectivityChangeReceiver(), new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION));
 
-        // Update flag based on current connectivity state
-        try {
-            ConnectivityManager mgr = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
-            NetworkInfo netInfo = mgr.getActiveNetworkInfo();
-            if ((netInfo != null) && (netInfo.isConnected())) {
-                callConnectionListener(false);
-            } else {
-                callConnectionListener(true);
-            }
-        } catch (Exception e) {
-            callConnectionListener(true);
-        }
+        handleConnectivityNotification(context);
     }
 
     /**
@@ -436,20 +431,25 @@ public class ErisCollectionManager implements MeteorCallback {
 
         @Override
         public void onReceive(Context context, Intent intent) {
-            ErisCollectionManager.this.handleConnectivityNotification(intent);
+            handleConnectivityNotification(context);
         }
     }
 
     /**
-     * @param intent
+     * @param context
      */
-    private void handleConnectivityNotification(Intent intent) {
-        boolean statusNet = intent.getBooleanExtra(ConnectivityManager.EXTRA_NO_CONNECTIVITY, false);
-        callConnectionListener(statusNet);
-        Loggi("Has network connectivity: " + (statusNet ? "Yes" : "Yes"));
-        String failReason = intent.getStringExtra(ConnectivityManager.EXTRA_REASON);
-        if ((failReason != null) && (failReason.length() > 0)) {
-            Loggi("Connectivity fail reason: " + failReason);
+    private void handleConnectivityNotification(Context context) {
+        // Update flag based on current connectivity state
+        try {
+            ConnectivityManager mgr = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+            NetworkInfo netInfo = mgr.getActiveNetworkInfo();
+            if ((netInfo != null) && (netInfo.isConnected())) {
+                callConnectionListener(true);
+            } else {
+                callConnectionListener(false);
+            }
+        } catch (Exception e) {
+            callConnectionListener(false);
         }
     }
 
