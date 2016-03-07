@@ -242,18 +242,19 @@ public class ErisCollectionManager implements MeteorCallback {
      * @param values
      * @param listener
      */
+
     public void insert(String collectionName, HashMap<String, Object> values, ResultListener listener) {
+
         if (listener != null) {
-            mMeteor.insert(collectionName, values);
-        } else {
-            if (listener != null) {
-                if (this.hasNetworkConnection) {
-                    mMeteor.insert(collectionName, values, listener);
-                }else {
-                    listener.onError("Error", "Please Check your network Connection", "");
-                }
+            if (this.hasNetworkConnection) {
+                mMeteor.insert(collectionName, values, listener);
+            } else {
+                listener.onError("Error", "Please Check your network Connection", "");
             }
+        } else {
+            mMeteor.insert(collectionName, values);
         }
+
     }
 
 
@@ -265,7 +266,7 @@ public class ErisCollectionManager implements MeteorCallback {
     public void remove(String collectionName, String documentId, ResultListener listener) {
         HashMap query = new HashMap();
         query.put("_id", documentId);
-        if (listener != null) {
+        if (listener == null) {
             mMeteor.insert(collectionName, query);
         } else {
             if (this.hasNetworkConnection) {
