@@ -4,7 +4,7 @@ This is library project based on [[delight-im/Android-DDP](https://github.com/de
 
 ## Purpose
 
-To handle collection data 
+To handle collection data in background
 
 ## Installation
 
