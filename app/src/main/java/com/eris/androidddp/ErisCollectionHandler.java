@@ -14,7 +14,6 @@ import java.util.List;
  */
 public class ErisCollectionHandler {
 
-
     private ErisCollectionListener eventListener;
     private HashMap<String, ErisCollectionRecord> collectionMap;
     private List<ErisCollectionRecord> collectionList;
@@ -28,36 +27,41 @@ public class ErisCollectionHandler {
         this.eventListener = eventListener;
     }
 
-    public void removeFromListMap(String  documentID){
+    public void removeFromListMap(String documentID) {
         collectionMap.remove(documentID);
-        for(ErisCollectionRecord collection:collectionList){
+        for (ErisCollectionRecord collection : collectionList) {
             if (collection.getDocId().equalsIgnoreCase(documentID)) {
-                int index=collectionList.indexOf(collection);
+                int index = collectionList.indexOf(collection);
                 collectionList.remove(index);
                 break;
             }
         }
     }
+
     public void onDataAdded(String collectionName, String documentID, String newValuesJson) {
 
-        ErisCollectionRecord colObj = new ErisCollectionRecord();
-        colObj.setJsonData(newValuesJson);
-        colObj.setDocId(documentID);
-        colObj.setCollectionName(collectionName);
+        if (!collectionMap.containsKey(documentID)) {
+            ErisCollectionRecord colObj = new ErisCollectionRecord();
+            colObj.setJsonData(newValuesJson);
+            colObj.setDocId(documentID);
+            colObj.setCollectionName(collectionName);
 
-        collectionList.add(colObj);
-        collectionMap.put(documentID, colObj);
+            collectionList.add(colObj);
+            collectionMap.put(documentID, colObj);
 
-        if (this.eventListener != null) {
-            this.eventListener.onDataAddedEris(colObj);
+            if (this.eventListener != null) {
+                this.eventListener.onDataAddedEris(colObj);
+            }
         }
     }
 
     public void onDataRemoved(String collectionName, String documentID) {
-        removeFromListMap(documentID);
+        if (collectionMap.containsKey(documentID)) {
+            removeFromListMap(documentID);
 
-        if (this.eventListener != null) {
-            this.eventListener.onDataRemovedEris(collectionName,documentID);
+            if (this.eventListener != null) {
+                this.eventListener.onDataRemovedEris(collectionName, documentID);
+            }
         }
     }
 
@@ -75,11 +79,11 @@ public class ErisCollectionHandler {
                     if (obj instanceof JSONArray) {
                         JSONArray urlArray = (JSONArray) obj;
                         objectOldData.put(key, urlArray);
-                    } else if(obj instanceof JSONObject){
+                    } else if (obj instanceof JSONObject) {
                         JSONObject urlObject = (JSONObject) obj;
                         objectOldData.put(key, urlObject);
-                    }else {
-                        objectOldData.put(key,obj);
+                    } else {
+                        objectOldData.put(key, obj);
                     }
                 }
                 collection.setJsonData(objectOldData.toString());

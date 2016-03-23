@@ -9,13 +9,16 @@ import android.net.NetworkInfo;
 import android.os.AsyncTask;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 import im.delight.android.ddp.Meteor;
 import im.delight.android.ddp.MeteorCallback;
 import im.delight.android.ddp.MeteorSingleton;
 import im.delight.android.ddp.ResultListener;
 import im.delight.android.ddp.SubscribeListener;
+import im.delight.android.ddp.UnsubscribeListener;
 
 /**
  * Created by Rohan on 09/02/16.
@@ -58,7 +61,7 @@ public class ErisCollectionManager implements MeteorCallback {
      * @param context
      * @param conUrl
      */
-    public void connect(Context context, String conUrl) {
+    public void connect(Context context, String conUrl, ErisConnectionListener listener) {
         mContext = context;
         try {
             if (MeteorSingleton.hasInstance()) {
@@ -70,6 +73,7 @@ public class ErisCollectionManager implements MeteorCallback {
                 mMeteor = MeteorSingleton.createInstance(mContext, ErisCollectionManager.getConnectionUrl(conUrl));
                 mMeteor.setCallback(this);
                 startConnectivityMonitoring(mContext);
+                seConnectionListener(listener);
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -84,6 +88,8 @@ public class ErisCollectionManager implements MeteorCallback {
     }
 
     /**
+     * call this method before connect
+     *
      * @param printMeteorLog
      */
     public void setPrintMeteorLog(boolean printMeteorLog) {
@@ -101,10 +107,15 @@ public class ErisCollectionManager implements MeteorCallback {
     @Override
     public void onConnect(boolean b) {
         Loggi("Meteor Connected");
-        if (subscriptionList.size() > 0) {
-            for (Map.Entry<String, String> entry : subscriptionList.entrySet()) {
-                String collectionName = entry.getKey();
-                subscribeCollection(collectionName);
+        if (connectionListener != null) {
+            connectionListener.onConnect(b);
+        }
+        if (collectionHandlerList.size() > 0) {
+            Set<String> keys = collectionHandlerList.keySet();
+            HashSet<String> subSet = new HashSet<>();
+            subSet.addAll(keys);
+            for (String key : subSet) {
+                subscribeCollection(key);
             }
         }
 
@@ -113,11 +124,18 @@ public class ErisCollectionManager implements MeteorCallback {
     @Override
     public void onDisconnect() {
         Loggi("Meteor Disconnect");
+        if (connectionListener != null) {
+            connectionListener.onDisconnect();
+        }
         try {
-            if (subscriptionList.size() > 0) {
-                for (Map.Entry<String, String> entry : subscriptionList.entrySet()) {
-                    String collectionName = entry.getKey();
-                    unscubscribeCollection(collectionName);
+            if (subscriptionList != null) {
+                if (subscriptionList.size() > 0) {
+                    Set<String> keys = subscriptionList.keySet();
+                    HashSet<String> subSet = new HashSet<>();
+                    subSet.addAll(keys);
+                    for (String key : subSet) {
+                        unscubscribeCollection(key, null);
+                    }
                 }
             }
         } catch (Exception e) {
@@ -127,7 +145,21 @@ public class ErisCollectionManager implements MeteorCallback {
 
     @Override
     public void onException(Exception e) {
+        if (connectionListener != null) {
+            connectionListener.onException(e);
+        }
         Loggi("Meteor Exception" + e.getMessage());
+    }
+
+    public boolean isMeteorConnected() {
+        return mMeteor.isConnected();
+    }
+
+    public void reConnectToMeteor(ErisConnectionListener listener) {
+        mMeteor.reconnect();
+        if (listener != null) {
+            connectionListener = listener;
+        }
     }
 
     @Override
@@ -200,9 +232,13 @@ public class ErisCollectionManager implements MeteorCallback {
      *
      * @param collectionName
      */
-    public void unscubscribeCollection(String collectionName) {
+    public void unscubscribeCollection(String collectionName, UnsubscribeListener listener) {
         if (hasSubscription(collectionName)) {
-            mMeteor.unsubscribe(collectionName);
+            if (listener == null) {
+                mMeteor.unsubscribe(collectionName);
+            } else {
+                mMeteor.unsubscribe(collectionName, listener);
+            }
             subscriptionList.remove(collectionName);
         }
     }
@@ -228,7 +264,7 @@ public class ErisCollectionManager implements MeteorCallback {
      * @param collectionName
      * @return
      */
-    public ErisCollectionHandler getCollection(String collectionName) {
+    public ErisCollectionHandler getCollectionHandler(String collectionName) {
 
         if (!collectionHandlerList.containsKey(collectionName)) {
             ErisCollectionHandler collection = new ErisCollectionHandler();
@@ -242,12 +278,16 @@ public class ErisCollectionManager implements MeteorCallback {
      * @param values
      * @param listener
      */
-
     public void insert(String collectionName, HashMap<String, Object> values, ResultListener listener) {
 
         if (listener != null) {
             if (this.hasNetworkConnection) {
-                mMeteor.insert(collectionName, values, listener);
+                if (mMeteor.isConnected()) {
+                    mMeteor.insert(collectionName, values, listener);
+                } else {
+                    listener.onError("Error", "Please try again", "");
+                    mMeteor.reconnect();
+                }
             } else {
                 listener.onError("Error", "Please Check your network Connection", "");
             }
@@ -270,7 +310,12 @@ public class ErisCollectionManager implements MeteorCallback {
             mMeteor.insert(collectionName, query);
         } else {
             if (this.hasNetworkConnection) {
-                mMeteor.insert(collectionName, query, listener);
+                if (mMeteor.isConnected()) {
+                    mMeteor.insert(collectionName, query, listener);
+                } else {
+                    listener.onError("Error", "Please try again", "");
+                    mMeteor.reconnect();
+                }
             } else {
                 listener.onError("Error", "Please Check your network Connection", "");
             }
@@ -278,28 +323,33 @@ public class ErisCollectionManager implements MeteorCallback {
     }
 
     /**
-     *
      * @param collectionName
      * @param query
      * @param data
      */
     public void update(String collectionName, Map<String, Object> query, Map<String, Object> data) {
-        MeteorSingleton.getInstance().update(collectionName, query, data);
+        if (mMeteor.isConnected()) {
+            MeteorSingleton.getInstance().update(collectionName, query, data);
+        } else {
+            mMeteor.reconnect();
+        }
     }
 
     /**
-     *
      * @param collectionName
      * @param query
      * @param data
      * @param options
      */
     public void update(String collectionName, Map<String, Object> query, Map<String, Object> data, Map<String, Object> options) {
-        MeteorSingleton.getInstance().update(collectionName, query, data, options);
+        if (mMeteor.isConnected()) {
+            MeteorSingleton.getInstance().update(collectionName, query, data, options);
+        } else {
+            mMeteor.reconnect();
+        }
     }
 
     /**
-     *
      * @param collectionName
      * @param query
      * @param data
@@ -309,7 +359,12 @@ public class ErisCollectionManager implements MeteorCallback {
     public void update(String collectionName, Map<String, Object> query, Map<String, Object> data, Map<String, Object> options, ResultListener listener) {
         if (listener != null) {
             if (this.hasNetworkConnection) {
-                MeteorSingleton.getInstance().update(collectionName, query, data, options, listener);
+                if (mMeteor.isConnected()) {
+                    MeteorSingleton.getInstance().update(collectionName, query, data, options, listener);
+                } else {
+                    listener.onError("Error", "Please try again", "");
+                    mMeteor.reconnect();
+                }
             } else {
                 listener.onError("Error", "Please Check your network Connection", "");
             }
@@ -317,7 +372,6 @@ public class ErisCollectionManager implements MeteorCallback {
     }
 
     /**
-     *
      * @param username
      * @param password
      * @param listener
@@ -333,7 +387,6 @@ public class ErisCollectionManager implements MeteorCallback {
     }
 
     /**
-     *
      * @param email
      * @param password
      * @param listener
@@ -342,6 +395,25 @@ public class ErisCollectionManager implements MeteorCallback {
         if (listener != null) {
             if (this.hasNetworkConnection) {
                 MeteorSingleton.getInstance().loginWithEmail(email, password, listener);
+            } else {
+                listener.onError("Error", "Please Check your network Connection", "");
+            }
+        }
+    }
+
+    /**
+     * @param email
+     * @param password
+     * @param listener
+     */
+    public void registerUser(String username, String email, String password, HashMap<String, Object> params, ResultListener listener) {
+        if (listener != null) {
+            if (this.hasNetworkConnection) {
+                if (params == null) {
+                    MeteorSingleton.getInstance().registerAndLogin(username, email, password, listener);
+                } else {
+                    MeteorSingleton.getInstance().registerAndLogin(username, email, password, params, listener);
+                }
             } else {
                 listener.onError("Error", "Please Check your network Connection", "");
             }
@@ -375,7 +447,12 @@ public class ErisCollectionManager implements MeteorCallback {
     public void callMethod(String methodName, Object[] objectArray, ResultListener listener) {
         if (listener != null) {
             if (this.hasNetworkConnection) {
-                new BackgroundRPC(methodName, objectArray, listener).execute();
+                if (mMeteor.isConnected()) {
+                    new BackgroundRPC(methodName, objectArray, listener).execute();
+                } else {
+                    listener.onError("Error", "Please try again", "");
+                    mMeteor.reconnect();
+                }
             } else {
                 listener.onError("Error", "Please Check your network Connection", "");
             }
@@ -409,8 +486,14 @@ public class ErisCollectionManager implements MeteorCallback {
     /**
      * @param listener
      */
-    public void setInternetConnectionListener(ErisConnectionListener listener) {
-        this.connectionListener = listener;
+    public void seConnectionListener(ErisConnectionListener listener) {
+        if (listener != null) {
+            this.connectionListener = listener;
+        }
+    }
+
+    public void unsetListener(){
+        this.connectionListener = null;
     }
 
     /**
