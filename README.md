@@ -1,3 +1,4 @@
+(Depreacted as [[delight-im/Android-DDP](https://github.com/delight-im/Android-DDP)] supports indb support no need to use this lib)
 # ErisAndroidDdp
 
 This is library project based on [[delight-im/Android-DDP](https://github.com/delight-im/Android-DDP)].<br />
